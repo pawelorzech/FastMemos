@@ -14,7 +14,7 @@ class NotePanel: NSPanel {
         
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 280),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -29,11 +29,8 @@ class NotePanel: NSPanel {
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.backgroundColor = .clear
         self.isOpaque = false
+        self.hasShadow = true
         
-        // Hide traffic light buttons
-        self.standardWindowButton(.closeButton)?.isHidden = true
-        self.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        self.standardWindowButton(.zoomButton)?.isHidden = true
         
         // Set minimum size
         self.minSize = NSSize(width: 400, height: 200)
@@ -42,32 +39,12 @@ class NotePanel: NSPanel {
         // Center on screen
         self.center()
         
-        // Create visual effect view for frosted glass
-        let visualEffectView = NSVisualEffectView()
-        visualEffectView.material = .hudWindow
-        visualEffectView.blendingMode = .behindWindow
-        visualEffectView.state = .active
-        visualEffectView.wantsLayer = true
-        visualEffectView.layer?.cornerRadius = 16
-        visualEffectView.layer?.masksToBounds = true
-        
         let contentView = NoteWindowView(appState: appState, closeWindow: { [weak self] in
             self?.orderOut(nil)
         })
         
         hostingView = NSHostingView(rootView: contentView)
-        hostingView?.translatesAutoresizingMaskIntoConstraints = false
-        visualEffectView.addSubview(hostingView!)
-        
-        // Constrain hosting view to fill the visual effect view
-        NSLayoutConstraint.activate([
-            hostingView!.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
-            hostingView!.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
-            hostingView!.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
-            hostingView!.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor)
-        ])
-        
-        self.contentView = visualEffectView
+        self.contentView = hostingView
     }
     
     func showWindow() {
@@ -76,11 +53,6 @@ class NotePanel: NSPanel {
             self?.orderOut(nil)
         })
         hostingView?.rootView = contentView
-        
-        // Hide traffic light buttons again (in case they reset)
-        self.standardWindowButton(.closeButton)?.isHidden = true
-        self.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        self.standardWindowButton(.zoomButton)?.isHidden = true
         
         self.center()
         self.makeKeyAndOrderFront(nil)
@@ -208,9 +180,9 @@ struct NoteWindowView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(4)
+        .glassEffect(.regular, in: .rect(cornerRadius: 20))
         .frame(minWidth: 400, minHeight: 200)
         .onAppear {
             visibility = appState.defaultVisibility
@@ -219,8 +191,8 @@ struct NoteWindowView: View {
         .onExitCommand {
             closeWindow()
         }
-        .animation(.easeInOut(duration: 0.2), value: showSuccess)
-        .animation(.easeInOut(duration: 0.2), value: errorMessage)
+        .animation(Animation.easeInOut(duration: 0.2), value: showSuccess)
+        .animation(Animation.easeInOut(duration: 0.2), value: errorMessage)
     }
     
     private var wordCount: Int {
