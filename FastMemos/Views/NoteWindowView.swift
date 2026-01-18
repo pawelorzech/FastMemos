@@ -6,12 +6,15 @@ class NotePanel: NSPanel {
     private var hostingView: NSHostingView<NoteWindowView>?
     private let appState: AppState
     
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+    
     init(appState: AppState) {
         self.appState = appState
         
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 280),
-            styleMask: [.borderless, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -27,6 +30,11 @@ class NotePanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         
+        // Hide traffic light buttons
+        self.standardWindowButton(.closeButton)?.isHidden = true
+        self.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        self.standardWindowButton(.zoomButton)?.isHidden = true
+        
         // Set minimum size
         self.minSize = NSSize(width: 400, height: 200)
         self.maxSize = NSSize(width: 800, height: 600)
@@ -34,12 +42,32 @@ class NotePanel: NSPanel {
         // Center on screen
         self.center()
         
+        // Create visual effect view for frosted glass
+        let visualEffectView = NSVisualEffectView()
+        visualEffectView.material = .hudWindow
+        visualEffectView.blendingMode = .behindWindow
+        visualEffectView.state = .active
+        visualEffectView.wantsLayer = true
+        visualEffectView.layer?.cornerRadius = 16
+        visualEffectView.layer?.masksToBounds = true
+        
         let contentView = NoteWindowView(appState: appState, closeWindow: { [weak self] in
             self?.orderOut(nil)
         })
         
         hostingView = NSHostingView(rootView: contentView)
-        self.contentView = hostingView
+        hostingView?.translatesAutoresizingMaskIntoConstraints = false
+        visualEffectView.addSubview(hostingView!)
+        
+        // Constrain hosting view to fill the visual effect view
+        NSLayoutConstraint.activate([
+            hostingView!.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
+            hostingView!.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
+            hostingView!.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
+            hostingView!.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor)
+        ])
+        
+        self.contentView = visualEffectView
     }
     
     func showWindow() {
@@ -48,6 +76,11 @@ class NotePanel: NSPanel {
             self?.orderOut(nil)
         })
         hostingView?.rootView = contentView
+        
+        // Hide traffic light buttons again (in case they reset)
+        self.standardWindowButton(.closeButton)?.isHidden = true
+        self.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        self.standardWindowButton(.zoomButton)?.isHidden = true
         
         self.center()
         self.makeKeyAndOrderFront(nil)
@@ -92,7 +125,6 @@ struct NoteWindowView: View {
                     .frame(minHeight: 150)
             }
             .padding(16)
-            .background(Color.white.opacity(0.1))
             
             // Bottom bar
             HStack(spacing: 16) {
@@ -176,17 +208,9 @@ struct NoteWindowView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.regularMaterial)
+            .background(.ultraThinMaterial)
         }
-        .background(
-            VisualEffectView(material: .fullScreenUI, blendingMode: .behindWindow)
-        )
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
         .frame(minWidth: 400, minHeight: 200)
         .onAppear {
             visibility = appState.defaultVisibility
