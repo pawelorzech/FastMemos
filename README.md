@@ -2,7 +2,10 @@
 
 A lightweight macOS menubar app for quickly capturing notes to your self-hosted [Memos](https://github.com/usememos/memos) instance.
 
-![FastMemos Screenshot](screenshot.png)
+<p align="center">
+  <img src="screenshot.png" alt="FastMemos Note Window" width="400">
+  <img src="screenshot-menu.png" alt="FastMemos Menubar" width="280">
+</p>
 
 ## Features
 

@@ -11,7 +11,7 @@ class NotePanel: NSPanel {
         
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 280),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.borderless, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -92,7 +92,7 @@ struct NoteWindowView: View {
                     .frame(minHeight: 150)
             }
             .padding(16)
-            .background(Color(NSColor.textBackgroundColor).opacity(0.5))
+            .background(Color.white.opacity(0.1))
             
             // Bottom bar
             HStack(spacing: 16) {
@@ -146,8 +146,8 @@ struct NoteWindowView: View {
                 // Character/word count
                 HStack(spacing: 6) {
                     Text("\(wordCount) words")
-                    Text("•")
-                        .foregroundColor(.secondary.opacity(0.6))
+                    Text("·")
+                        .foregroundColor(.secondary.opacity(0.4))
                     Text("\(charCount) chars")
                 }
                 .font(.system(size: 12))
@@ -179,13 +179,14 @@ struct NoteWindowView: View {
             .background(.regularMaterial)
         }
         .background(
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+            VisualEffectView(material: .fullScreenUI, blendingMode: .behindWindow)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
         .frame(minWidth: 400, minHeight: 200)
         .onAppear {
             visibility = appState.defaultVisibility
