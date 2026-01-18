@@ -25,6 +25,18 @@ struct SettingsView: View {
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    // General Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("General", systemImage: "gearshape")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Toggle("Launch at login", isOn: $appState.launchAtLogin)
+                            .toggleStyle(.switch)
+                    }
+                    
+                    Divider()
+                    
                     // Default Visibility Section
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Default Visibility", systemImage: "eye")

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import ServiceManagement
 
 /// Global app state that persists settings and manages authentication
 class AppState: ObservableObject {
@@ -10,11 +11,23 @@ class AppState: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastError: String?
     
+    @Published var launchAtLogin: Bool = false {
+        didSet {
+            if launchAtLogin {
+                try? SMAppService.mainApp.register()
+            } else {
+                try? SMAppService.mainApp.unregister()
+            }
+        }
+    }
+    
     private let keychainService = KeychainService()
     private lazy var apiService = MemosAPIService()
     
     init() {
         loadSettings()
+        // Check current launch at login status
+        launchAtLogin = SMAppService.mainApp.status == .enabled
     }
     
     // MARK: - Settings Persistence
