@@ -10,6 +10,8 @@
 	<string>FastMemos</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>me.orzech.FastMemos</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -19,7 +21,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.0.1</string>
 	<key>CFBundleSupportedPlatforms</key>
 	<array>
 		<string>MacOSX</string>
