@@ -127,6 +127,13 @@ struct MenuBarView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     Spacer()
+                    
+                    Button(action: { NSApplication.shared.terminate(nil) }) {
+                        Text("Quit App")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding()
