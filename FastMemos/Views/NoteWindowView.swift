@@ -1,9 +1,40 @@
 import SwiftUI
 import AppKit
 
+/// Custom NSHostingView that never draws focus ring
+class NoFocusRingHostingView<Content: View>: NSHostingView<Content> {
+    override var focusRingType: NSFocusRingType {
+        get { .none }
+        set { }
+    }
+
+    override func drawFocusRingMask() {
+        // Don't draw focus ring
+    }
+
+    override var focusRingMaskBounds: NSRect {
+        .zero
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // Disable focus ring on all subviews after view hierarchy is set up
+        DispatchQueue.main.async {
+            self.disableFocusRingsRecursively(in: self)
+        }
+    }
+
+    private func disableFocusRingsRecursively(in view: NSView) {
+        view.focusRingType = .none
+        for subview in view.subviews {
+            disableFocusRingsRecursively(in: subview)
+        }
+    }
+}
+
 /// Floating panel for quick note capture
 class NotePanel: NSPanel {
-    private var hostingView: NSHostingView<NoteWindowView>?
+    private var hostingView: NoFocusRingHostingView<NoteWindowView>?
     private let appState: AppState
     
     override var canBecomeKey: Bool { true }
@@ -30,8 +61,8 @@ class NotePanel: NSPanel {
         self.backgroundColor = .clear
         self.isOpaque = false
         self.hasShadow = true
-        
-        
+        self.autorecalculatesKeyViewLoop = false
+
         // Set minimum size
         self.minSize = NSSize(width: 400, height: 200)
         self.maxSize = NSSize(width: 800, height: 600)
@@ -43,7 +74,7 @@ class NotePanel: NSPanel {
             self?.orderOut(nil)
         })
         
-        hostingView = NSHostingView(rootView: contentView)
+        hostingView = NoFocusRingHostingView(rootView: contentView)
         self.contentView = hostingView
     }
     
@@ -53,10 +84,180 @@ class NotePanel: NSPanel {
             self?.orderOut(nil)
         })
         hostingView?.rootView = contentView
-        
+
         self.center()
         self.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Disable focus rings on all subviews
+        DispatchQueue.main.async { [weak self] in
+            if let contentView = self?.contentView {
+                Self.disableFocusRingsRecursively(in: contentView)
+            }
+        }
+    }
+
+    private static func disableFocusRingsRecursively(in view: NSView) {
+        view.focusRingType = .none
+        for subview in view.subviews {
+            disableFocusRingsRecursively(in: subview)
+        }
+    }
+}
+
+/// Custom NSTextView with placeholder support and no focus ring
+struct PlaceholderTextView: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+    let font: NSFont
+    var onSubmit: (() -> Void)?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NoFocusRingScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.focusRingType = .none
+        scrollView.contentView.focusRingType = .none
+
+        let textView = PlaceholderNSTextView()
+        textView.delegate = context.coordinator
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.font = font
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.focusRingType = .none
+        textView.textContainerInset = NSSize(width: 0, height: 0)
+        textView.textContainer?.lineFragmentPadding = 0
+
+        // Placeholder setup
+        textView.placeholderString = placeholder
+        textView.placeholderFont = font
+        textView.placeholderColor = NSColor.secondaryLabelColor
+
+        // Auto-resize
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+
+        scrollView.documentView = textView
+
+        // Focus the text view and disable focus rings in hierarchy
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+            Self.disableFocusRingsRecursively(in: scrollView)
+        }
+
+        return scrollView
+    }
+
+    private static func disableFocusRingsRecursively(in view: NSView) {
+        view.focusRingType = .none
+        for subview in view.subviews {
+            disableFocusRingsRecursively(in: subview)
+        }
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? PlaceholderNSTextView else { return }
+
+        if textView.string != text {
+            textView.string = text
+        }
+        textView.needsDisplay = true
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: PlaceholderTextView
+
+        init(_ parent: PlaceholderTextView) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
+
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            // Handle Cmd+Enter for submit
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                if NSEvent.modifierFlags.contains(.command) {
+                    parent.onSubmit?()
+                    return true
+                }
+            }
+            return false
+        }
+    }
+}
+
+/// Custom NSScrollView that never draws focus ring
+class NoFocusRingScrollView: NSScrollView {
+    override var focusRingType: NSFocusRingType {
+        get { .none }
+        set { }
+    }
+
+    override func drawFocusRingMask() {
+        // Don't draw focus ring
+    }
+
+    override var focusRingMaskBounds: NSRect {
+        .zero
+    }
+}
+
+/// Custom NSTextView that draws placeholder text
+class PlaceholderNSTextView: NSTextView {
+    var placeholderString: String = ""
+    var placeholderFont: NSFont = NSFont.systemFont(ofSize: 15)
+    var placeholderColor: NSColor = NSColor.secondaryLabelColor
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        // Draw placeholder if text is empty
+        if string.isEmpty {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: placeholderFont,
+                .foregroundColor: placeholderColor
+            ]
+            let placeholderRect = NSRect(
+                x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 0),
+                y: textContainerInset.height,
+                width: bounds.width - textContainerInset.width * 2,
+                height: bounds.height - textContainerInset.height * 2
+            )
+            placeholderString.draw(in: placeholderRect, withAttributes: attributes)
+        }
+    }
+
+    override var needsPanelToBecomeKey: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+
+    override var focusRingType: NSFocusRingType {
+        get { .none }
+        set { }
+    }
+
+    override func drawFocusRingMask() {
+        // Don't draw focus ring
+    }
+
+    override var focusRingMaskBounds: NSRect {
+        .zero
     }
 }
 
@@ -64,38 +265,25 @@ class NotePanel: NSPanel {
 struct NoteWindowView: View {
     @ObservedObject var appState: AppState
     let closeWindow: () -> Void
-    
+
     @State private var content: String = ""
     @State private var visibility: MemoVisibility = .private
     @State private var isSending = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
-    
-    @FocusState private var isTextEditorFocused: Bool
-    
+
     private let placeholder = "What's on your mind?"
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Main text area
-            ZStack(alignment: .topLeading) {
-                // Placeholder
-                if content.isEmpty {
-                    Text(placeholder)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                }
-                
-                // Text editor
-                TextEditor(text: $content)
-                    .font(.system(size: 15))
-                    .focused($isTextEditorFocused)
-                    .scrollContentBackground(.hidden)
-                    .background(Color.clear)
-                    .frame(minHeight: 150)
-            }
+            PlaceholderTextView(
+                text: $content,
+                placeholder: placeholder,
+                font: NSFont.systemFont(ofSize: 15),
+                onSubmit: submitMemo
+            )
+            .frame(minHeight: 150)
             .padding(16)
             
             // Bottom bar
@@ -182,15 +370,25 @@ struct NoteWindowView: View {
             .padding(.vertical, 12)
         }
         .padding(4)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .focusable(false)
+        .focusEffectDisabled()
         .frame(minWidth: 400, minHeight: 200)
         .onAppear {
             visibility = appState.defaultVisibility
-            isTextEditorFocused = true
         }
         .onExitCommand {
             closeWindow()
         }
+        .background(
+            Button("") { closeWindow() }
+                .keyboardShortcut("w", modifiers: .command)
+                .hidden()
+        )
         .animation(Animation.easeInOut(duration: 0.2), value: showSuccess)
         .animation(Animation.easeInOut(duration: 0.2), value: errorMessage)
     }
