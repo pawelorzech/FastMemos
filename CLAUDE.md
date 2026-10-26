@@ -1,65 +1,28 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Last verified: 28b0389 | 2026-10-26
 
-## Build & Development
+Native macOS menubar-only SwiftUI app (macOS 13+, Xcode 15+) for quick note capture to a self-hosted [Memos](https://github.com/usememos/memos) server. Runs as `.accessory` (no dock icon). No test target; verify by building and running against a Memos instance.
 
-This is a native macOS SwiftUI app. Open `FastMemos.xcodeproj` in Xcode and build with `⌘B`.
+## Build & run
 
-From the command line:
 ```bash
-xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug build
+xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug -derivedDataPath build build
+open build/Build/Products/Debug/FastMemos.app
 ```
 
-To run:
-```bash
-xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug build
-open ./build/Debug/FastMemos.app
-```
-
-**Requirements:** macOS 13.0+ (Ventura), Xcode 15+
+(Without `-derivedDataPath` the product lands in Xcode DerivedData, not `./build`.)
 
 ## Architecture
 
-FastMemos is a menubar-only macOS app for quickly capturing notes to a self-hosted [Memos](https://github.com/usememos/memos) server.
+- `FastMemosApp.swift`: `AppDelegate` owns the status item and popover; global hotkey (default Cmd+Shift+M, `ShortcutService`, Carbon Events) opens `NotePanel`, a floating `NSPanel` hosting `NoteWindowView`; Cmd+Enter submits.
+- `ViewModels/AppState`: single source of truth passed to all views (login state, server URL, default visibility, memo creation).
+- `Services/`: `MemosAPIService` (Memos v1 API: `/api/v1/memos`, token check via `/api/v1/auth/status` with `/api/v1/user/me` fallback), `KeychainService`, `ShortcutService`.
+- Flow: hotkey -> `showNoteWindow()` -> `NoteWindowView.submitMemo()` -> `AppState.createMemo()` -> `MemosAPIService.createMemo()` with Bearer token.
+- Visibility enum `MemoVisibility`: `PRIVATE` / `PROTECTED` / `PUBLIC`.
 
-### Key Components
+## Storage
 
-**Entry Point (`FastMemosApp.swift`):**
-- `AppDelegate` sets up the menubar status item and popover
-- App runs as `.accessory` (no dock icon)
-- Global hotkey (⌘⇧M) triggers `showNoteWindow()`
-- `NotePanel` is a floating `NSPanel` for the note capture UI
-
-**State Management:**
-- `AppState` (in `ViewModels/`) is the single source of truth, passed to all views
-- Publishes: `isLoggedIn`, `serverURL`, `defaultVisibility`, `isLoading`, `lastError`, `launchAtLogin`
-- Handles authentication flow and memo creation
-
-**Services (in `Services/`):**
-- `MemosAPIService` - Communicates with Memos v1 API (`/api/v1/memos`, `/api/v1/auth/status`)
-- `KeychainService` - Stores access tokens securely in macOS Keychain (service: `me.orzech.FastMemos`)
-- `ShortcutService` - Registers global hotkey using Carbon Events API
-
-**Views (in `Views/`):**
-- `MenuBarView` - Main popover shown from menubar icon
-- `NoteWindowView` - Floating note capture panel with visibility picker
-- `LoginView` - Access token authentication flow
-- `SettingsView` - App preferences (visibility, launch at login)
-
-**Models (in `Models/`):**
-- `Memo`, `CreateMemoRequest` - API request/response structures
-- `MemoVisibility` - Enum: `.private`, `.protected`, `.public`
-
-### Data Flow
-
-1. User triggers hotkey → `AppDelegate.showNoteWindow()` → `NotePanel` appears
-2. User writes note, selects visibility, presses ⌘Enter
-3. `NoteWindowView.submitMemo()` → `AppState.createMemo()` → `MemosAPIService.createMemo()`
-4. Token from `KeychainService` is used for Bearer auth
-
-### Settings Storage
-
-- `UserDefaults`: `serverURL`, `defaultVisibility`, `shortcutKeyCode`, `shortcutModifiers`
-- Keychain: `accessToken`, `username`
-- `SMAppService.mainApp` for launch at login
+- Keychain (service `me.orzech.FastMemos`): `accessToken`, `username`.
+- `UserDefaults`: `serverURL`, `defaultVisibility`, `shortcutKeyCode`, `shortcutModifiers`.
+- Launch at login via `SMAppService.mainApp`.

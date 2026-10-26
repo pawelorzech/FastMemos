@@ -1,22 +1,10 @@
 # AGENTS
 
-## Requirements
-- macOS 13.0+ (Ventura)
-- Xcode 15+
-- Access to a self-hosted Memos instance for runtime testing
+Last verified: 28b0389 | 2026-10-26
 
-## Build
-- Open `FastMemos.xcodeproj` in Xcode and build with `⌘B`
-- CLI build:
+Guidance lives in `CLAUDE.md` (build, run, architecture). Needs macOS 13+, Xcode 15+, and a self-hosted Memos instance for runtime testing.
+
 ```bash
-xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug build
+xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug -derivedDataPath build build
+open build/Build/Products/Debug/FastMemos.app
 ```
-
-## Run
-```bash
-xcodebuild -project FastMemos.xcodeproj -scheme FastMemos -configuration Debug build
-open ./build/Debug/FastMemos.app
-```
-
-## TODO
-- Document any additional workflows or scripts not covered in README/CLAUDE.
